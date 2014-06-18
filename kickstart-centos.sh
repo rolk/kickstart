@@ -17,7 +17,7 @@ missing () {
 
 Error: Some prerequisites are missing. Install necessary packages with:
 
-  sudo apt-get install wget qemu dosfstools fusefat fuseiso python-pykickstart
+  sudo apt-get install wget qemu python-pykickstart
 
 EOF
 }
@@ -74,18 +74,6 @@ EOF
   usage
 }
 
-# check that all prerequisites are in place before we start
-if [ ! \( -x "$(command -v wget)"        -a \
-          -x "$(command -v ksvalidator)" -a \
-          -x "$(command -v mkdosfs)"     -a \
-          -x "$(command -v fusefat)"     -a \
-          -x "$(command -v fuseiso)"     -a \
-          -x "$(command -v kvm-img)"     -a \
-          -x "$(command -v kvm)" \) ]; then
-  missing
-  exit 1
-fi
-
 # default settings
 PREFIX=$(pwd)
 MIRROR=
@@ -96,6 +84,8 @@ ARCH=$(uname -m)
 USERNAME=user
 PASSWORD=
 FORCE=no
+KERNELORG=http://www.kernel.org
+SYSLINUX=syslinux-6.02
 
 # allow user to customize on command-line
 for OPT in "$@"; do
@@ -122,11 +112,13 @@ for OPT in "$@"; do
           # undocumented shorthand
           MIRROR=http://ftp.uninett.no/pub/Linux/centos
           EPEL=http://ftp.uninett.no/linux/epel
+          KERNELORG=http://linux-kernel.uio.no
           ;;
         uib)
           # undocumented shorthand
           MIRROR=http://centos.uib.no
           EPEL=http://fedora.uib.no/epel
+          KERNELORG=http://linux-kernel.uio.no
           ;;
         user=*)
           USERNAME=${OPTARG#*=}
@@ -169,6 +161,16 @@ done
 # remove all arguments processed by getopts
 shift $((OPTIND-1))
 
+# check that all prerequisites are in place before we start
+if [ ! \( -x "$(command -v wget)"        -a \
+          -x "$(command -v ksvalidator)" -a \
+          -x "$(command -v dd)"          -a \
+          -x "$(command -v kvm-img)"     -a \
+          -x "$(command -v qemu-system-${ARCH})" \) ]; then
+  missing
+  exit 1
+fi
+
 # error handling: bail out if anything goes wrong
 set -e
 
@@ -208,12 +210,16 @@ echo Using EPEL mirror at: $EPEL
 # do everything in this directory
 TMPROOT=$(mktemp -t -d centos-${MAJOR}_${MINOR}.XXXXXX)
 
-# download the network installation iso; this is comparable in size
-# to many packages, so we just do it every time
-wget -nv -P "$TMPROOT" $MIRROR/$MAJOR.$MINOR/isos/$ARCH/CentOS-$MAJOR.$MINOR-$ARCH-netinstall.iso
+# download the kernel and initial ramdisk for network booting
+wget -nv -P "$TMPROOT" $MIRROR/$MAJOR.$MINOR/os/$ARCH/images/pxeboot/vmlinuz
+wget -nv -P "$TMPROOT" $MIRROR/$MAJOR.$MINOR/os/$ARCH/images/pxeboot/initrd.img
+wget -nv -P "$TMPROOT" $KERNELORG/pub/linux/utils/boot/syslinux/$SYSLINUX.tar.xz
 
-# write first to a file on disk, since fusefat in seemingly unstable
-# when taking input from pipe (?)
+# get the boot file from the disk image
+tar xf "$TMPROOT/$SYSLINUX.tar.xz" -C "$TMPROOT" $SYSLINUX/bios/core/pxelinux.0 --strip-components=3
+tar xf "$TMPROOT/$SYSLINUX.tar.xz" -C "$TMPROOT" $SYSLINUX/bios/com32/elflink/ldlinux/ldlinux.c32 --strip-components=5
+
+# kickstart file also goes in root directory of TFTP server
 cat > $TMPROOT/ks.cfg <<EOF
 # don't use graphical install
 #text
@@ -409,66 +415,46 @@ EOF
 # check that we haven't made any errors in the above ks.cfg file
 ksvalidator -v RHEL$MAJOR $TMPROOT/ks.cfg
 
-### Preparing the floppy disk
+# decompress the initial ram disk, add the kickstart and then compress again
+pushd "$TMPROOT"
+gzip -d -S .img -f initrd.img
+echo ks.cfg | cpio -oA -F initrd -H newc -R root:root
+gzip -S .img initrd
+popd
 
-# create a virtual floppy disk (1.44M)
-dd if=/dev/zero of=$TMPROOT/ks.img bs=4096 count=360
-
-# format the disk
-mkdosfs -F 12 -v $TMPROOT/ks.img 1440
-
-# private mount-point
-mkdir -p $TMPROOT/floppy
-
-# mount a vfat diskette image to the floppy drive
-#mount CentOS-$MAJOR-$MINOR-ks.img ~/mnt -o loop,sync,dirsync,uid=$(id -u $(whoami)),gid=$(id -g $(whoami))
-fusefat $TMPROOT/ks.img $TMPROOT/floppy -o direct_io,rw+,uid=$(id -u $(whoami)),gid=$(id -g $(whoami))
-
-# copy the Kickstart configuration file to the floppy
-cp $TMPROOT/ks.cfg $TMPROOT/floppy/ks.cfg
-
-# unload disk image
-fusermount -u $TMPROOT/floppy
-
-### Doing the installation
-
-# mount the installation cdrom to be available to host also
-#sudo mount -o loop,ro CentOS-$MAJOR.$MINOR-$ARCH-netinstall.iso /media/cdrom
-mkdir -p $TMPROOT/cdrom
-fuseiso -n $TMPROOT/CentOS-$MAJOR.$MINOR-$ARCH-netinstall.iso $TMPROOT/cdrom
+# boot file
+mkdir -p "$TMPROOT/pxelinux.cfg"
+cat > "$TMPROOT/pxelinux.cfg/default" <<EOF
+serial 0 115200
+console 0
+default auto
+label auto
+kernel vmlinuz
+append serial ks=file:/ks.cfg console=ttyS0 initrd=/initrd.img
+EOF
 
 # create an installation disk; we only need around 1.3G for the installation,
 # later to be shrinked down to 300M, but we want to format the disk to
 # potentially hold more. On ext3 creating a large file with zeros is inexpensive
-kvm-img create \
-  -f raw \
-  -o size=4G \
-  $PREFIX/CentOS-$MAJOR.$MINOR-raw.img
+dd of=$PREFIX/CentOS-$MAJOR.$MINOR-raw.img bs=4G seek=1 count=0
 
 # boot with command-line option; we use no-reboot so that we don't
 # start the VM once more with the same init settings as the first time
-kvm \
+qemu-system-${ARCH} \
   -name "CentOS" \
   -enable-kvm \
   -m 1G \
-  -boot once=d \
+  -boot once=n \
   -drive file=$PREFIX/CentOS-$MAJOR.$MINOR-raw.img,if=virtio,index=0,media=disk,format=raw,cache=unsafe \
-  -drive file=$TMPROOT/CentOS-$MAJOR.$MINOR-$ARCH-netinstall.iso,index=1,media=cdrom \
-  -fda $TMPROOT/ks.img \
-  -netdev user,id=hostnet0,hostname=centos$MAJOR -device virtio-net-pci,romfile=,netdev=hostnet0 \
+  -netdev user,id=hostnet0,hostname=centos$MAJOR,tftp=$TMPROOT,bootfile=pxelinux.0 \
+  -device virtio-net-pci,romfile=pxe-virtio.rom,netdev=hostnet0 \
   -nographic -vga none \
   -balloon virtio \
-  -kernel $TMPROOT/cdrom/isolinux/vmlinuz \
-  -initrd $TMPROOT/cdrom/isolinux/initrd.img \
-  -append "serial ks=hd:fd0:/ks.cfg console=ttyS0" \
   -no-reboot
-
-# we don't need installation media anymore
-fusermount -u $TMPROOT/cdrom
 
 # boot once more to do first time initialization (which is
 # setup to halt automatically)
-kvm \
+qemu-system-${ARCH} \
   -name "CentOS" \
   -enable-kvm \
   -m 1G \
@@ -511,11 +497,9 @@ EOF
 chmod +x $PREFIX/CentOS-$MAJOR.$MINOR
 
 # clean up temporary directory
-rm $TMPROOT/CentOS-$MAJOR.$MINOR-$ARCH-netinstall.iso
-rm $TMPROOT/ks.cfg
-rm $TMPROOT/ks.img
-rmdir $TMPROOT/floppy
-rmdir $TMPROOT/cdrom
+rm $TMPROOT/vmlinuz $TMPROOT/initrd.img $TMPROOT/ks.cfg
+rm $TMPROOT/pxelinux.0 $TMPROOT/ldlinux.c32 $TMPROOT/$SYSLINUX.tar.xz
+rm -rf $TMPROOT/pxelinux.cfg
 rmdir $TMPROOT
 
 # use scp to 10.0.2.2 to get/put files to host
