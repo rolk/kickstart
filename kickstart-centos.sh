@@ -428,10 +428,18 @@ if [ $(ksvalidator -l | grep -c RHEL$MAJOR) -gt 0 ] ; then
 fi
 
 # decompress the initial ram disk, add the kickstart and then compress again
+# note: must use -9, or the image become so large it cannot be loaded!
 pushd "$TMPROOT"
-gzip -d -S .img -f initrd.img
+if [ $MAJOR -le 5 ] ; then
+  COMPRESSOR="gzip"
+  COMP_OPT=""
+else
+  COMPRESSOR="xz"
+  COMP_OPT="--format=lzma -9"
+fi
+$COMPRESSOR -d -S .img -f initrd.img
 echo ks.cfg | cpio -oA -F initrd -H newc -R root:root
-gzip -S .img initrd
+$COMPRESSOR $COMP_OPT -S .img initrd
 popd
 
 # boot file
