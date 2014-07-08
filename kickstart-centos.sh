@@ -305,6 +305,7 @@ zerofree
 #@ desktop-platform
 #@ x11
 #@ fonts
+$([ $MAJOR -ge 6 ] && echo %end)
 
 %post
 # lock the root account for login, we'll use sudo; later versions of Kickstart
@@ -416,6 +417,7 @@ action "Sparsify /dev/vda2" /usr/sbin/zerofree /dev/vda2\\
 /sbin/shutdown -h now
 #FIRSTBOOT_END#
 ___
+$([ $MAJOR -ge 6 ] && echo %end)
 EOF
 
 # check input file
