@@ -423,7 +423,9 @@ EOF
 #    ksvalidator -v RHEL6 ks.cfg
 
 # check that we haven't made any errors in the above ks.cfg file
-ksvalidator -v RHEL$MAJOR $TMPROOT/ks.cfg
+if [ $(ksvalidator -l | grep -c RHEL$MAJOR) -gt 0 ] ; then
+  ksvalidator -v RHEL$MAJOR $TMPROOT/ks.cfg
+fi
 
 # decompress the initial ram disk, add the kickstart and then compress again
 pushd "$TMPROOT"
