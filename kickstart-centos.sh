@@ -78,8 +78,7 @@ EOF
 PREFIX=$(pwd)
 MIRROR=
 EPEL=
-MAJOR=5
-MINOR=10
+VER=5.10
 ARCH=$(uname -m)
 USERNAME=user
 PASSWORD=
@@ -137,8 +136,6 @@ for OPT in "$@"; do
           ;;
         version=*)
           VER=${OPTARG#*=}
-          MAJOR=$(echo $VER | cut -f 1 -d.)
-          MINOR=$(echo $VER | cut -f 2 -d.)
           ;;
         help)
           usage
@@ -174,22 +171,25 @@ fi
 # error handling: bail out if anything goes wrong
 set -e
 
+# some places (mirror urls notably) need only major version
+MAJOR=$(echo $VER | cut -f 1 -d.)
+
 # check for existing files
 if [ "$FORCE" != "yes" ]; then
-  if [ -e "$PREFIX/CentOS-$MAJOR.$MINOR" ]; then
-    echo Error: File "$PREFIX/CentOS-$MAJOR.$MINOR" already exists!
+  if [ -e "$PREFIX/CentOS-$VER" ]; then
+    echo Error: File "$PREFIX/CentOS-$VER" already exists!
     exit 1
   fi
-  if [ -e "$PREFIX/CentOS-$MAJOR.$MINOR-raw.img" ]; then
-    echo Error: File "$PREFIX/CentOS-$MAJOR.$MINOR-raw.img" already exists!
+  if [ -e "$PREFIX/CentOS-$VER-raw.img" ]; then
+    echo Error: File "$PREFIX/CentOS-$VER-raw.img" already exists!
     exit 1
   fi
-  if [ -e "$PREFIX/CentOS-$MAJOR.$MINOR-base.img" ]; then
-    echo Error: File "$PREFIX/CentOS-$MAJOR.$MINOR-base.img" already exists!
+  if [ -e "$PREFIX/CentOS-$VER-base.img" ]; then
+    echo Error: File "$PREFIX/CentOS-$VER-base.img" already exists!
     exit 1
   fi
-  if [ -e "$PREFIX/CentOS-$MAJOR.$MINOR.img" ]; then
-    echo Error: File "$PREFIX/CentOS-$MAJOR.$MINOR.img" already exists!
+  if [ -e "$PREFIX/CentOS-$VER.img" ]; then
+    echo Error: File "$PREFIX/CentOS-$VER.img" already exists!
     exit 1
   fi
 fi
@@ -208,11 +208,11 @@ fi
 echo Using EPEL mirror at: $EPEL
 
 # do everything in this directory
-TMPROOT=$(mktemp -t -d centos-${MAJOR}_${MINOR}.XXXXXX)
+TMPROOT=$(mktemp -t -d centos-${VER/./_}.XXXXXX)
 
 # download the kernel and initial ramdisk for network booting
-wget -nv -P "$TMPROOT" $MIRROR/$MAJOR.$MINOR/os/$ARCH/images/pxeboot/vmlinuz
-wget -nv -P "$TMPROOT" $MIRROR/$MAJOR.$MINOR/os/$ARCH/images/pxeboot/initrd.img
+wget -nv -P "$TMPROOT" $MIRROR/$VER/os/$ARCH/images/pxeboot/vmlinuz
+wget -nv -P "$TMPROOT" $MIRROR/$VER/os/$ARCH/images/pxeboot/initrd.img
 wget -nv -P "$TMPROOT" $KERNELORG/pub/linux/utils/boot/syslinux/$SYSLINUX.tar.xz
 
 # get the boot file from the disk image
@@ -231,7 +231,7 @@ install
 # installation media
 #cdrom
 # use network install
-url --url=$MIRROR/$MAJOR.$MINOR/os/$ARCH
+url --url=$MIRROR/$VER/os/$ARCH
 
 # extra repositories
 repo --name=epel --baseurl=$EPEL/$MAJOR/$ARCH
@@ -278,7 +278,7 @@ clearpart --all --drives=vda --initlabel
 
 # use one partition for system and data (and no swap)
 part /boot --fstype=ext3 --size=64
-part / --fstype=ext3 --size=1 --grow --label=CentOS_$MAJOR.$MINOR
+part / --fstype=ext3 --size=1 --grow --label=CentOS_$VER
 
 # if we have a console machine only
 #skipx
@@ -446,7 +446,7 @@ EOF
 # create an installation disk; we only need around 1.3G for the installation,
 # later to be shrinked down to 300M, but we want to format the disk to
 # potentially hold more. On ext3 creating a large file with zeros is inexpensive
-dd of=$PREFIX/CentOS-$MAJOR.$MINOR-raw.img bs=4G seek=1 count=0
+dd of=$PREFIX/CentOS-$VER-raw.img bs=4G seek=1 count=0
 
 # boot with command-line option; we use no-reboot so that we don't
 # start the VM once more with the same init settings as the first time
@@ -455,7 +455,7 @@ qemu-system-${ARCH} \
   -enable-kvm \
   -m 1G \
   -boot once=n \
-  -drive file=$PREFIX/CentOS-$MAJOR.$MINOR-raw.img,if=virtio,index=0,media=disk,format=raw,cache=unsafe \
+  -drive file=$PREFIX/CentOS-$VER-raw.img,if=virtio,index=0,media=disk,format=raw,cache=unsafe \
   -netdev user,id=hostnet0,hostname=centos$MAJOR,tftp=$TMPROOT,bootfile=pxelinux.0 \
   -device virtio-net-pci,romfile=pxe-virtio.rom,netdev=hostnet0 \
   -nographic -vga none \
@@ -469,7 +469,7 @@ qemu-system-${ARCH} \
   -enable-kvm \
   -m 1G \
   -boot order=c \
-  -drive file=$PREFIX/CentOS-$MAJOR.$MINOR-raw.img,if=virtio,index=0,media=disk,format=raw,cache=unsafe \
+  -drive file=$PREFIX/CentOS-$VER-raw.img,if=virtio,index=0,media=disk,format=raw,cache=unsafe \
   -netdev user,id=hostnet0,hostname=centos$MAJOR -device virtio-net-pci,romfile=,netdev=hostnet0 \
   -nographic -vga none \
   -balloon virtio \
@@ -479,32 +479,32 @@ qemu-system-${ARCH} \
 kvm-img convert \
   -c \
   -f raw -O qcow2 \
-  $PREFIX/CentOS-$MAJOR.$MINOR-raw.img \
-  $PREFIX/CentOS-$MAJOR.$MINOR-base.img
+  $PREFIX/CentOS-$VER-raw.img \
+  $PREFIX/CentOS-$VER-base.img
 
-rm $PREFIX/CentOS-$MAJOR.$MINOR-raw.img
+rm $PREFIX/CentOS-$VER-raw.img
 
 # create an overlay to store further changes on
 kvm-img create \
-  -b $PREFIX/CentOS-$MAJOR.$MINOR-base.img \
+  -b $PREFIX/CentOS-$VER-base.img \
   -f qcow2 \
-  $PREFIX/CentOS-$MAJOR.$MINOR.img
+  $PREFIX/CentOS-$VER.img
   
 # boot regular installation
-cat > $PREFIX/CentOS-$MAJOR.$MINOR << EOF
+cat > $PREFIX/CentOS-$VER << EOF
 #!/bin/sh
 exec kvm \
   -name "CentOS" \
   -enable-kvm \
   -m 1G \
   -boot order=c \
-  -drive file=\$(dirname \$0)/CentOS-$MAJOR.$MINOR.img,if=virtio,index=0,media=disk,cache=writeback \
+  -drive file=\$(dirname \$0)/CentOS-$VER.img,if=virtio,index=0,media=disk,cache=writeback \
   -netdev user,id=hostnet0,hostname=centos$MAJOR -device virtio-net-pci,romfile=,netdev=hostnet0 \
   -nographic -vga none \
   -balloon virtio \
   -no-reboot
 EOF
-chmod +x $PREFIX/CentOS-$MAJOR.$MINOR
+chmod +x $PREFIX/CentOS-$VER
 
 # clean up temporary directory
 rm $TMPROOT/vmlinuz $TMPROOT/initrd.img $TMPROOT/ks.cfg
