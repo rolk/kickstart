@@ -337,14 +337,24 @@ sed -i 's,\(terminal --timeout\)=\(.*\) serial console,\1=0 serial,' /boot/grub/
 # to the bootloader command with quotation
 sed -i 's,^\(\tkernel.*\),\1 clocksource=kvm-clock clocksource_failover=acpi_pm,' /boot/grub/grub.conf
 
-# autologin on the virtual terminal; Upstart has /etc/init/serial.conf,
-# SYSV has /etc/inittab
-if test -f /etc/init/serial.conf ; then
-  sed -i 's,exec /sbin/agetty /dev/\\\$DEV \\\$SPEED vt100-nav,exec /sbin/mingetty --noclear --autologin $USERNAME \\\$DEV,' /etc/init/serial.conf;
+# autologin on the virtual terminal; CentOS 7 uses systemd, CentOS 6 uses
+# Upstart which has /etc/init/serial.conf, CentOS 5 uses SYSV with /etc/inittab
+if test -d /etc/systemd/system/getty.target.wants ; then
+  ln -s /usr/lib/systemd/system/getty@.service /etc/systemd/system/getty.target.wants/getty@ttyS0.service
+  mkdir -p /etc/systemd/system/getty@ttyS0.service.d/
+  cat > /etc/systemd/system/getty@ttyS0.service.d/autologin.conf <<___
+[Service]
+ExecStart=
+ExecStart=-/sbin/mingetty --noclear --autologin $USERNAME %I
+___
 else
-  # make sure Kudzu has run so it doesn't overwrite /etc/inittab afterwards
-  /sbin/kudzu -s -q
-  sed -i 's,/sbin/agetty \(ttyS[0-9]\).*,/sbin/mingetty --noclear --autologin $USERNAME \1,' /etc/inittab;
+  if test -f /etc/init/serial.conf ; then
+    sed -i 's,exec /sbin/agetty /dev/\\\$DEV \\\$SPEED vt100-nav,exec /sbin/mingetty --noclear --autologin $USERNAME \\\$DEV,' /etc/init/serial.conf;
+  else
+    # make sure Kudzu has run so it doesn't overwrite /etc/inittab afterwards
+    /sbin/kudzu -s -q
+    sed -i 's,/sbin/agetty \(ttyS[0-9]\).*,/sbin/mingetty --noclear --autologin $USERNAME \1,' /etc/inittab;
+  fi
 fi
 
 # sane command-line prompt
