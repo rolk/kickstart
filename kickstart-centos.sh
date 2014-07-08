@@ -176,20 +176,20 @@ MAJOR=$(echo $VER | cut -f 1 -d.)
 
 # check for existing files
 if [ "$FORCE" != "yes" ]; then
-  if [ -e "$PREFIX/CentOS-$VER" ]; then
-    echo Error: File "$PREFIX/CentOS-$VER" already exists!
+  if [ -e "$PREFIX/centos-$VER" ]; then
+    echo Error: File "$PREFIX/centos-$VER" already exists!
     exit 1
   fi
-  if [ -e "$PREFIX/CentOS-$VER-raw.img" ]; then
-    echo Error: File "$PREFIX/CentOS-$VER-raw.img" already exists!
+  if [ -e "$PREFIX/centos-$VER-raw.img" ]; then
+    echo Error: File "$PREFIX/centos-$VER-raw.img" already exists!
     exit 1
   fi
-  if [ -e "$PREFIX/CentOS-$VER-base.img" ]; then
-    echo Error: File "$PREFIX/CentOS-$VER-base.img" already exists!
+  if [ -e "$PREFIX/centos-$VER-base.img" ]; then
+    echo Error: File "$PREFIX/centos-$VER-base.img" already exists!
     exit 1
   fi
-  if [ -e "$PREFIX/CentOS-$VER.img" ]; then
-    echo Error: File "$PREFIX/CentOS-$VER.img" already exists!
+  if [ -e "$PREFIX/centos-$VER.img" ]; then
+    echo Error: File "$PREFIX/centos-$VER.img" already exists!
     exit 1
   fi
 fi
@@ -278,7 +278,7 @@ clearpart --all --drives=vda --initlabel
 
 # use one partition for system and data (and no swap)
 part /boot --fstype=ext3 --size=64
-part / --fstype=ext3 --size=1 --grow --label=CentOS_$VER
+part / --fstype=ext3 --size=1 --grow --label=centos_$VER
 
 # if we have a console machine only
 #skipx
@@ -456,7 +456,7 @@ EOF
 # create an installation disk; we only need around 1.3G for the installation,
 # later to be shrinked down to 300M, but we want to format the disk to
 # potentially hold more. On ext3 creating a large file with zeros is inexpensive
-dd of=$PREFIX/CentOS-$VER-raw.img bs=4G seek=1 count=0
+dd of=$PREFIX/centos-$VER-raw.img bs=4G seek=1 count=0
 
 # boot with command-line option; we use no-reboot so that we don't
 # start the VM once more with the same init settings as the first time
@@ -465,7 +465,7 @@ qemu-system-${ARCH} \
   -enable-kvm \
   -m 1G \
   -boot once=n \
-  -drive file=$PREFIX/CentOS-$VER-raw.img,if=virtio,index=0,media=disk,format=raw,cache=unsafe \
+  -drive file=$PREFIX/centos-$VER-raw.img,if=virtio,index=0,media=disk,format=raw,cache=unsafe \
   -netdev user,id=hostnet0,hostname=centos$MAJOR,tftp=$TMPROOT,bootfile=pxelinux.0 \
   -device virtio-net-pci,romfile=pxe-virtio.rom,netdev=hostnet0 \
   -nographic -vga none \
@@ -479,7 +479,7 @@ qemu-system-${ARCH} \
   -enable-kvm \
   -m 1G \
   -boot order=c \
-  -drive file=$PREFIX/CentOS-$VER-raw.img,if=virtio,index=0,media=disk,format=raw,cache=unsafe \
+  -drive file=$PREFIX/centos-$VER-raw.img,if=virtio,index=0,media=disk,format=raw,cache=unsafe \
   -netdev user,id=hostnet0,hostname=centos$MAJOR -device virtio-net-pci,romfile=,netdev=hostnet0 \
   -nographic -vga none \
   -balloon virtio \
@@ -489,32 +489,32 @@ qemu-system-${ARCH} \
 kvm-img convert \
   -c \
   -f raw -O qcow2 \
-  $PREFIX/CentOS-$VER-raw.img \
-  $PREFIX/CentOS-$VER-base.img
+  $PREFIX/centos-$VER-raw.img \
+  $PREFIX/centos-$VER-base.img
 
-rm $PREFIX/CentOS-$VER-raw.img
+rm $PREFIX/centos-$VER-raw.img
 
 # create an overlay to store further changes on
 kvm-img create \
-  -b $PREFIX/CentOS-$VER-base.img \
+  -b $PREFIX/centos-$VER-base.img \
   -f qcow2 \
-  $PREFIX/CentOS-$VER.img
+  $PREFIX/centos-$VER.img
   
 # boot regular installation
-cat > $PREFIX/CentOS-$VER << EOF
+cat > $PREFIX/centos-$VER << EOF
 #!/bin/sh
 exec kvm \
   -name "CentOS" \
   -enable-kvm \
   -m 1G \
   -boot order=c \
-  -drive file=\$(dirname \$0)/CentOS-$VER.img,if=virtio,index=0,media=disk,cache=writeback \
+  -drive file=\$(dirname \$0)/centos-$VER.img,if=virtio,index=0,media=disk,cache=writeback \
   -netdev user,id=hostnet0,hostname=centos$MAJOR -device virtio-net-pci,romfile=,netdev=hostnet0 \
   -nographic -vga none \
   -balloon virtio \
   -no-reboot
 EOF
-chmod +x $PREFIX/CentOS-$VER
+chmod +x $PREFIX/centos-$VER
 
 # clean up temporary directory
 rm $TMPROOT/vmlinuz $TMPROOT/initrd.img $TMPROOT/ks.cfg
