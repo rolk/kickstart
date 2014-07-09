@@ -505,7 +505,7 @@ kvm-img create \
 # boot regular installation
 cat > $PREFIX/centos-$VER << EOF
 #!/bin/sh
-exec kvm \
+exec qemu-system-${ARCH} \
   -name "CentOS" \
   -enable-kvm \
   -m 1G \
