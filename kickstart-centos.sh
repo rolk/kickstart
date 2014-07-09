@@ -109,13 +109,13 @@ for OPT in "$@"; do
           ;;
         uninett)
           # undocumented shorthand
-          MIRROR=http://ftp.uninett.no/pub/Linux/centos
+          MIRROR=http://ftp.uninett.no/pub/linux/centos
           EPEL=http://ftp.uninett.no/linux/epel
           KERNELORG=http://linux-kernel.uio.no
           ;;
         uib)
           # undocumented shorthand
-          MIRROR=http://centos.uib.no
+          MIRROR=http://fedora.uib.no/centos
           EPEL=http://fedora.uib.no/epel
           KERNELORG=http://linux-kernel.uio.no
           ;;
