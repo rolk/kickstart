@@ -225,6 +225,15 @@ echo Using CentOS mirror at: $MIRROR
 if [ -z "$EPEL" ]; then
   EPEL=$(wget -q -O - http://mirrors.fedoraproject.org/mirrorlist?repo=epel-$MAJOR\&arch=$ARCH | grep -v ^# | head -n 1)
   EPEL=$(dirname $(dirname $EPEL))
+else
+  # check if we have to use beta/
+  if ! wget -q -O /dev/null $EPEL/$MAJOR/$ARCH/repodata/repomd.xml; then
+    if wget -q -O /dev/null $EPEL/beta/$MAJOR/$ARCH/repodata/repomd.xml; then
+      EPEL=$EPEL/beta
+    else
+      EPEL=""
+    fi
+  fi
 fi
 echo Using EPEL mirror at: $EPEL
 
