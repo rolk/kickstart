@@ -329,7 +329,7 @@ epel-release
 # needed for resize program used to set console size
 xterm
 # needed to clear the virtual disk efficiently
-zerofree
+$([ $MAJOR -le 5 ] && echo zerofree || echo util-linux-ng)
 # if you want to switch to GUI mode, you have to install the following packages
 #@ basic-desktop
 #@ desktop-platform
@@ -432,8 +432,8 @@ sed -i '/^\# Remount the root filesystem read-write\./i\\\
 
 \#FIRSTBOOT_START\#\\
 \# clear unused filesystem blocks\\
-action "Sparsify /dev/vda1" /usr/sbin/zerofree /dev/vda1\\
-action "Sparsify /dev/vda2" /usr/sbin/zerofree /dev/vda2\\
+action "Sparsify /dev/sda1" $([ $MAJOR -le 5 ] && echo /usr/sbin/zerofree /dev/sda1 || echo /sbin/fstrim -v /boot)\\
+action "Sparsify /dev/sda2" $([ $MAJOR -le 5 ] && echo /usr/sbin/zerofree /dev/sda2 || echo /sbin/fstrim -v /)\\
 \#FIRSTBOOT_END\#\\
 ' /etc/rc.d/rc.sysinit
 
