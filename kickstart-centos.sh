@@ -481,7 +481,7 @@ console 0
 default auto
 label auto
 kernel vmlinuz
-append serial ks=file:/ks.cfg console=ttyS0 initrd=/initrd.img
+append $([ $MAJOR -lt 7 ] && echo serial) ks=file:/ks.cfg console=ttyS0 initrd=/initrd.img
 EOF
 
 # create an installation disk; we only need around 1.3G for the installation,
