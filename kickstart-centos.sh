@@ -296,15 +296,15 @@ timezone --utc Etc/CET
 # default bootloader is GRUB. it should normally be installed on the MBR.
 # you can include a --driveorder switch to specify the drive with the bootloader
 # and an --append switch to specify commands for the kernel.
-bootloader --location=mbr --driveorder=vda
+bootloader --location=mbr --driveorder=$([ $MAJOR -le 5 ] && echo vda || echo sda)
 
 # clear the Master Boot Record
 zerombr
 
 # this directive clears all volumes on the sda hard drive. If it hasn’t been used
-# before, --initlabel initializes that drive. vda is used instead of sda since we
-# are using the virtio driver in kvm
-clearpart --all --drives=vda --initlabel
+# before, --initlabel initializes that drive. sda is used instead of vda since we
+# are using the virtio-SCSI driver in kvm
+clearpart --all --drives=$([ $MAJOR -le 5 ] && echo vda || echo sda) --initlabel
 
 # use one partition for system and data (and no swap)
 part /boot --fstype=ext3 --size=64
@@ -497,7 +497,8 @@ qemu-system-${ARCH} \
   -enable-kvm \
   -m 1G \
   -boot once=n \
-  -drive file=$PREFIX/centos-$VER-raw.img,if=virtio,index=0,media=disk,format=raw,cache=unsafe \
+  -drive file=$PREFIX/centos-$VER-raw.img,$([ $MAJOR -le 5 ] && echo if=virtio,index=0 || echo if=none,id=hd0,discard=unmap),media=disk,format=raw,cache=unsafe \
+  $([ $MAJOR -ge 6 ] && echo -device virtio-scsi-pci,id=scsi -device scsi-hd,drive=hd0) \
   -netdev user,id=hostnet0,hostname=centos$MAJOR,tftp=$TMPROOT,bootfile=pxelinux.0 \
   -device virtio-net-pci,romfile=pxe-virtio.rom,netdev=hostnet0 \
   -nographic -vga none \
@@ -511,7 +512,9 @@ qemu-system-${ARCH} \
   -enable-kvm \
   -m 1G \
   -boot order=c \
-  -drive file=$PREFIX/centos-$VER-raw.img,if=virtio,index=0,media=disk,format=raw,cache=unsafe \
+  -device virtio-scsi-pci \
+  -drive file=$PREFIX/centos-$VER-raw.img,$([ $MAJOR -le 5 ] && echo if=virtio,index=0 || echo if=none,id=hd0,discard=unmap),media=disk,format=raw,cache=unsafe \
+  $([ $MAJOR -ge 6 ] && echo -device virtio-scsi-pci,id=scsi -device scsi-hd,drive=hd0) \
   -netdev user,id=hostnet0,hostname=centos$MAJOR -device virtio-net-pci,romfile=,netdev=hostnet0 \
   -nographic -vga none \
   -balloon virtio \
@@ -540,7 +543,8 @@ exec qemu-system-${ARCH} \
   -enable-kvm \
   -m 1G \
   -boot order=c \
-  -drive file=\$(dirname \$0)/centos-$VER.img,if=virtio,index=0,media=disk,cache=writeback \
+  -drive file=\$(dirname \$0)/centos-$VER.img,$([ $MAJOR -le 5 ] && echo if=virtio,index=0 || echo if=none,id=hd0,discard=unmap),media=disk,cache=writeback \
+  $([ $MAJOR -ge 6 ] && echo -device virtio-scsi-pci,id=scsi -device scsi-hd,drive=hd0) \
   -netdev user,id=hostnet0,hostname=centos$MAJOR -device virtio-net-pci,romfile=,netdev=hostnet0 \
   -nographic -vga none \
   -balloon virtio \
