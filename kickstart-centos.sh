@@ -15,11 +15,12 @@ INVOKER=${INVOKER/$HOME/\~}
 missing () {
   cat 1>&2 <<EOF
 
-Error: Some prerequisites are missing. Install necessary packages with:
+Error: Prerequisite $1 is missing. Install necessary packages with:
 
   sudo apt-get install wget qemu python-pykickstart
 
 EOF
+  exit 1
 }
 
 # display usage message
@@ -159,14 +160,11 @@ done
 shift $((OPTIND-1))
 
 # check that all prerequisites are in place before we start
-if [ ! \( -x "$(command -v wget)"        -a \
-          -x "$(command -v ksvalidator)" -a \
-          -x "$(command -v dd)"          -a \
-          -x "$(command -v kvm-img)"     -a \
-          -x "$(command -v qemu-system-${ARCH})" \) ]; then
-  missing
-  exit 1
-fi
+for cmd in wget ksvalidator dd qemu-img qemu-system-${ARCH}; do
+  if [ ! -x "$(command -v $cmd)" ]; then
+    missing $cmd
+  fi
+done
 
 # error handling: bail out if anything goes wrong
 set -e
