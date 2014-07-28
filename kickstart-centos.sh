@@ -491,10 +491,12 @@ dd of=$PREFIX/centos-$VER-raw.img bs=4G seek=1 count=0
 
 # boot with command-line option; we use no-reboot so that we don't
 # start the VM once more with the same init settings as the first time
+# RHEL7 will die with some obscure firewall config error if not given
+# enough memory in setup process
 qemu-system-${ARCH} \
   -name "CentOS" \
   -enable-kvm \
-  -m 1G \
+  -m $([ $MAJOR -ge 7 ] && echo 2G || echo 1G)\
   -boot once=n \
   -drive file=$PREFIX/centos-$VER-raw.img,$([ $MAJOR -le 5 ] && echo if=virtio,index=0 || echo if=none,id=hd0,discard=unmap),media=disk,format=raw,cache=unsafe \
   $([ $MAJOR -ge 6 ] && echo -device virtio-scsi-pci,id=scsi -device scsi-hd,drive=hd0) \
