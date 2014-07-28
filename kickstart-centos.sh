@@ -324,7 +324,6 @@ firstboot --disable
 @ Base
 #@ Development Tools
 mingetty
-wget
 epel-release
 # needed for resize program used to set console size
 xterm
