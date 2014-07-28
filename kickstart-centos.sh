@@ -323,7 +323,7 @@ firstboot --disable
 %packages
 @ Base
 #@ Development Tools
-mingetty
+$([ $MAJOR -le 6 ] && echo mingetty)
 epel-release
 # needed for resize program used to set console size
 xterm
@@ -375,7 +375,7 @@ if test -d /etc/systemd/system/getty.target.wants ; then
   cat > /etc/systemd/system/getty@ttyS0.service.d/autologin.conf <<___
 [Service]
 ExecStart=
-ExecStart=-/sbin/mingetty --noclear --autologin $USERNAME %I
+ExecStart=-/sbin/agetty --noclear --autologin $USERNAME %I 115200 xterm
 ___
 else
   if test -f /etc/init/serial.conf ; then
