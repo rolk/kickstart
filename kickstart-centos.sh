@@ -23,6 +23,20 @@ EOF
   exit 1
 }
 
+# error message for too old QEmu version
+qemuver () {
+   cat 1>&2 <<EOF
+
+Error: Expecting QEmu version >= 1.5 (current = $1.$2). Consider:
+
+   sudo add-apt-repository cloud-archive:icehouse
+   sudo apt-get update
+   sudo apt-get upgrade qemu
+
+EOF
+  exit 2
+}
+
 # display usage message
 usage () {
   cat 1>&2 <<EOF
@@ -165,6 +179,15 @@ for cmd in wget ksvalidator dd qemu-img qemu-system-${ARCH}; do
     missing $cmd
   fi
 done
+
+# check version of QEmu
+read qemu_major qemu_minor < <(
+  qemu-system-${ARCH} -version |
+  sed -n "s/^.*version \([0-9]\)\.\([0-9]\).*$/\1 \2/p")
+
+if [ $qemu_major -eq 1 -a $qemu_minor -lt 5 ]; then
+  qemuver $qemu_major $qemu_minor
+fi
 
 # error handling: bail out if anything goes wrong
 set -e
@@ -486,7 +509,7 @@ qemu-system-${ARCH} \
   -no-reboot
 
 # compact installation disk
-kvm-img convert \
+qemu-img convert \
   -c \
   -f raw -O qcow2 \
   $PREFIX/centos-$VER-raw.img \
@@ -495,7 +518,7 @@ kvm-img convert \
 rm $PREFIX/centos-$VER-raw.img
 
 # create an overlay to store further changes on
-kvm-img create \
+qemu-img create \
   -b $PREFIX/centos-$VER-base.img \
   -f qcow2 \
   $PREFIX/centos-$VER.img
