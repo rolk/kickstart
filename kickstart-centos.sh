@@ -401,7 +401,7 @@ vm.overcommit_ratio=150
 ___
 
 # disable OOM killer in any processes already started
-cat >> /etc/rc.local <<___
+cat >> /etc/rc.d/rc.local <<___
 
 # disable OOM killer for all (and new) processes
 if [ \\\$(find /proc/[0-9]* -name oom_score_adj | wc -l) -eq 0 ]; then
@@ -437,15 +437,16 @@ action "Sparsify /dev/sda2" $([ $MAJOR -le 5 ] && echo /usr/sbin/zerofree /dev/s
 ' /etc/rc.d/rc.sysinit
 
 # do this one the first boot; the section is removed afterwards
-/bin/cat >> /etc/rc.local <<___
+/bin/cat >> /etc/rc.d/rc.local <<___
 #FIRSTBOOT_START#
 # clean up after our initialization
 /bin/sed -i '/^\#FIRSTBOOT_START\#/,/^\#FIRSTBOOT_END\#/d' /etc/rc.d/rc.sysinit
-/bin/sed -i '/^\#FIRSTBOOT_START\#/,/^\#FIRSTBOOT_END\#/d' /etc/rc.local
+/bin/sed -i '/^\#FIRSTBOOT_START\#/,/^\#FIRSTBOOT_END\#/d' /etc/rc.d/rc.local
 # return to console for disk compaction
 /sbin/shutdown -h now
 #FIRSTBOOT_END#
 ___
+chmod +x /etc/rc.d/rc.local
 $([ $MAJOR -ge 6 ] && echo %end)
 EOF
 
