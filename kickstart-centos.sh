@@ -307,7 +307,7 @@ zerombr
 clearpart --all --drives=$([ $MAJOR -le 5 ] && echo vda || echo sda) --initlabel
 
 # use one partition for system and data (and no swap)
-part /boot --fstype=ext3 --size=64
+part /boot --fstype=ext3 --size=96
 part / --fstype=ext3 --size=1 --grow --label=centos_$VER
 
 # if we have a console machine only
