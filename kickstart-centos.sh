@@ -421,12 +421,12 @@ ___
 # configure alias to host system
 echo -e '10.0.2.2\tdom0' >> /etc/hosts
 
-# make sure that console change when window resizes
-cat > /etc/profile.d/serial.sh <<___
-if [ \\\$(tty) == "/dev/ttyS0" ]; then
-  trap '[ "\\\$(tty)" = "/dev/ttyS0" ] && eval "\\\$(resize)"' DEBUG
-fi
-___
+## make sure that console change when window resizes
+#cat > /etc/profile.d/serial.sh <<___
+#if [ \\\$(tty) == "/dev/ttyS0" ]; then
+#  trap '[ "\\\$(tty)" = "/dev/ttyS0" ] && eval "\\\$(resize)"' DEBUG
+#fi
+#___
 
 # correct for bug in nash builtin stabilized
 #sed -i 's,\(emit \"stabilized --hash --interval\) \([0-9]*\) \(/proc/scsi/scsi\),\1 1 \3,' /sbin/mkinitrd
