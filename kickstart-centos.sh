@@ -441,26 +441,31 @@ ___
 # correct for bug in nash builtin stabilized
 #sed -i 's,\(emit \"stabilized --hash --interval\) \([0-9]*\) \(/proc/scsi/scsi\),\1 1 \3,' /sbin/mkinitrd
 
-# zero out unused blocks before the filesystem is mounted
-# notice the quoting of newlines necessary for the sed script
-# to be correct output from the post-install script
-sed -i '/^\# Remount the root filesystem read-write\./i\\\
+# RHEL5 needs to run zerofree before the partitions are mounted read-write;
+# later versions have fstrim, which can be run from rc.local instead
+if [ $(echo $MAJOR) -le 5 ] ; then
+  # zero out unused blocks before the filesystem is mounted
+  # notice the quoting of newlines necessary for the sed script
+  # to be correct output from the post-install script
+  sed -i '/^\# Remount the root filesystem read-write\./i\\\
 
 \#FIRSTBOOT_START\#\\
 \# clear unused filesystem blocks\\
-action "Sparsify /dev/sda1" $([ $MAJOR -le 5 ] && echo /usr/sbin/zerofree /dev/sda1 || echo /sbin/fstrim -v /boot)\\
-action "Sparsify /dev/sda2" $([ $MAJOR -le 5 ] && echo /usr/sbin/zerofree /dev/sda2 || echo /sbin/fstrim -v /)\\
+action "Sparsify /dev/sda1" /usr/sbin/zerofree /dev/sda1\\
+action "Sparsify /dev/sda2" /usr/sbin/zerofree /dev/sda2\\
 \#FIRSTBOOT_END\#\\
 ' /etc/rc.d/rc.sysinit
+fi
 
 # do this one the first boot; the section is removed afterwards
 /bin/cat >> /etc/rc.d/rc.local <<___
 #FIRSTBOOT_START#
 # clean up after our initialization
-/bin/sed -i '/^\#FIRSTBOOT_START\#/,/^\#FIRSTBOOT_END\#/d' /etc/rc.d/rc.sysinit
-/bin/sed -i '/^\#FIRSTBOOT_START\#/,/^\#FIRSTBOOT_END\#/d' /etc/rc.d/rc.local
+$([ $MAJOR -le 5 ] && echo /bin/sed -i '/^\#FIRSTBOOT_START\#/,/^\#FIRSTBOOT_END\#/d' /etc/rc.d/rc.sysinit)
+$([ $MAJOR -ge 6 ] && echo /sbin/fstrim -v /boot )
+$([ $MAJOR -ge 6 ] && echo /sbin/fstrim -v / )
 # return to console for disk compaction
-/sbin/shutdown -h now
+/bin/sed -i '/^\#FIRSTBOOT_START\#/,/^\#FIRSTBOOT_END\#/d' /etc/rc.d/rc.local ; /sbin/shutdown -h now
 #FIRSTBOOT_END#
 ___
 chmod +x /etc/rc.d/rc.local
