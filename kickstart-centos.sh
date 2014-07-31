@@ -415,17 +415,7 @@ cat >> /etc/sysctl.conf <<___
 # disable out-of-memory-killer
 vm.overcommit_memory=2
 vm.overcommit_ratio=150
-___
-
-# disable OOM killer in any processes already started
-cat >> /etc/rc.d/rc.local <<___
-
-# disable OOM killer for all (and new) processes
-if [ \\\$(find /proc/[0-9]* -name oom_score_adj | wc -l) -eq 0 ]; then
-for i in /proc/[0-9]*/oom_adj; do echo -ne "-17" > \\\$i; done
-else
-for i in /proc/[0-9]*/oom_score_adj; do echo -ne "-1000" > \\\$i; done
-fi
+vm.oom-kill=0
 ___
 
 # configure alias to host system
