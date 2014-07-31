@@ -357,15 +357,32 @@ echo '$USERNAME ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 # turn on the GUI mode, if you want to
 #sed -i 's/id:3:initdefault:/id:5:initdefault:/g' /etc/inittab
 
-# don't wait to select OS in bootloader
-sed -i 's,\(timeout\)=\(.*\),\1=0,' /boot/grub/grub.conf
+# RHEL7 uses GRUB2, which can be configured with /etc/default/grub
+if [ $(echo $MAJOR) -le 6 ] ; then
+  # don't wait to select OS in bootloader
+  sed -i 's,\(timeout\)=\(.*\),\1=0,' /boot/grub/grub.conf
 
-# only probe for serial terminal upon boot
-sed -i 's,\(terminal --timeout\)=\(.*\) serial console,\1=0 serial,' /boot/grub/grub.conf
+  # only probe for serial terminal upon boot
+  sed -i 's,\(terminal --timeout\)=\(.*\) serial console,\1=0 serial,' /boot/grub/grub.conf
 
-# specify kernel parameters; leter versions let us use the --append option
-# to the bootloader command with quotation
-sed -i 's,^\(\tkernel.*\),\1 clocksource=kvm-clock clocksource_failover=acpi_pm,' /boot/grub/grub.conf
+  # specify kernel parameters; later versions let us use the --append option
+  # to the bootloader command with quotation
+  sed -i 's,^\(\tkernel.*\),\1 clocksource=kvm-clock clocksource_failover=acpi_pm,' /boot/grub/grub.conf
+
+else
+
+  # don't wait to select OS in bootloader
+  sed -i 's,\(GRUB_TIMEOUT\)=\(.*\),\1=0,' /etc/default/grub
+
+  # only probe for serial terminal upon boot
+  sed -i 's,\(GRUB_TERMINAL\)=\".*\",\1=\"serial\",' /etc/default/grub
+
+  # specify kernel parameters; later versions let us use the --append option
+  # to the bootloader command with quotation
+  sed -i 's,\(GRUB_CMDLINE_LINUX\)=\"\(.*\)\",\1="\2 clocksource=kvm-clock clocksource_failover=acpi_pm",' /etc/default/grub
+
+  /usr/sbin/grub2-mkconfig -o /boot/grub2/grub.cfg
+fi
 
 # autologin on the virtual terminal; CentOS 7 uses systemd, CentOS 6 uses
 # Upstart which has /etc/init/serial.conf, CentOS 5 uses SYSV with /etc/inittab
