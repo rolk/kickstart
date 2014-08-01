@@ -294,7 +294,7 @@ d-i apt-setup/security_path string /ubuntu
 tasksel tasksel/first multiselect minimal
 
 # individual additional packages to install
-d-i pkgsel/include string zerofree,xterm
+d-i pkgsel/include string util-linux,xterm
 
 # don't upgrade packages after debootstrap since we pull them from network anyway
 d-i pkgsel/upgrade select none
@@ -412,9 +412,7 @@ fi
 ___
 
 # clear the disk
-mount -o remount,ro /target
-/target/usr/sbin/zerofree /dev/sda2
-mount -o remount,rw /target
+/target/sbin/fstrim -v /target
 EOF
 
 # you can get a listing of the files on the initial disk with the command
