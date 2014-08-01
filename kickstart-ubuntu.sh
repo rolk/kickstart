@@ -193,7 +193,6 @@ fi
 # download list of mirrors, pick the first
 if [ -z "$MIRROR" ]; then
   MIRROR=$(wget -q -O - http://mirrors.ubuntu.com/mirrors.txt | head -n 1)
-  MIRROR=$(dirname $(dirname $(dirname $MIRROR)))
 fi
 echo Using Ubuntu mirror at: $MIRROR
 
