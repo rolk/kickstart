@@ -431,6 +431,8 @@ popd
 # create an installation disk; we only need around 1.3G for the installation,
 # later to be shrinked down to 230M, but we want to format the disk to
 # potentially hold more. On ext3 creating a large file with zeros is inexpensive
+# unlink old file first to avoid seeking through a potentially large file
+rm -f "$PREFIX/ubuntu-$VER-raw.img"
 dd of=$PREFIX/ubuntu-$VER-raw.img bs=4G seek=1 count=0
 
 # use '-boot once=d' and '-drive file=$TMPROOT/mini.iso,index=1,media=cdrom'
