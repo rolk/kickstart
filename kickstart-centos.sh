@@ -500,6 +500,8 @@ EOF
 # create an installation disk; we only need around 1.3G for the installation,
 # later to be shrinked down to 300M, but we want to format the disk to
 # potentially hold more. On ext3 creating a large file with zeros is inexpensive
+# unlink old file first to avoid seeking through a potentially large file
+rm -f "$PREFIX/centos-$VER-raw.img"
 dd of=$PREFIX/centos-$VER-raw.img bs=4G seek=1 count=0
 
 # boot with command-line option; we use no-reboot so that we don't
