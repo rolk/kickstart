@@ -19,6 +19,20 @@ EOF
   exit 1
 }
 
+# error message for too old QEmu version
+qemuver () {
+   cat 1>&2 <<EOF
+
+Error: Expecting QEmu version >= 1.5 (current = $1.$2). Consider:
+
+   sudo add-apt-repository cloud-archive:icehouse
+   sudo apt-get update
+   sudo apt-get upgrade qemu
+
+EOF
+  exit 2
+}
+
 # display usage message
 usage () {
   cat 1>&2 <<EOF
@@ -136,6 +150,15 @@ for cmd in wget qemu-img qemu-system-${ARCH}; do
     missing $cmd
   fi
 done
+
+# check version of QEmu
+read qemu_major qemu_minor < <(
+  qemu-system-${ARCH} -version |
+  sed -n "s/^.*version \([0-9]\)\.\([0-9]\).*$/\1 \2/p")
+
+if [ $qemu_major -eq 1 -a $qemu_minor -lt 5 ]; then
+  qemuver $qemu_major $qemu_minor
+fi
 
 # translate Linux architecture to Ubuntu notation
 DEB_ARCH=$ARCH
