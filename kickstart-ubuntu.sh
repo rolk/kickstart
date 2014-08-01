@@ -131,7 +131,7 @@ shift $((OPTIND-1))
 
 # check that all prerequisites are in place before we start
 if [ ! \( -x "$(command -v wget)"        -a \
-          -x "$(command -v kvm-img)"     -a \
+          -x "$(command -v qemu-img)"    -a \
           -x "$(command -v qemu-system-${ARCH})" \) ]; then
   missing
   exit 1
@@ -451,7 +451,7 @@ qemu-system-${ARCH} \
   -no-reboot
 
 # compact installation disk
-kvm-img convert \
+qemu-img convert \
   -c \
   -f raw -O qcow2 \
   $PREFIX/ubuntu-$VER-raw.img \
@@ -460,7 +460,7 @@ kvm-img convert \
 rm $PREFIX/ubuntu-$VER-raw.img
 
 # create an overlay to store further changes on
-kvm-img create \
+qemu-img create \
   -b $PREFIX/ubuntu-$VER-base.img \
   -f qcow2 \
   $PREFIX/ubuntu-$VER.img
