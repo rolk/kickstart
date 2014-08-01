@@ -345,18 +345,18 @@ EOF
 
 cat > "$TMPROOT/partition.sh" <<EOF
 #!/bin/sh
-sfdisk -C 8192 -H 128 -S 8 /dev/vda <<___
+sfdisk -C 8192 -H 128 -S 8 /dev/sda <<___
 0,1,0
 1,8191,L,*
 ___
-mkfs.ext4 -L harddisk -b 4096 -i 4096 -E stride=128,stripe-width=128 -O ^resize_inode,^huge_file -M / /dev/vda2
-tune2fs -o journal_data_writeback -r 25600 /dev/vda2
+mkfs.ext4 -L harddisk -b 4096 -i 4096 -E stride=128,stripe-width=128 -O ^resize_inode,^huge_file -M / /dev/sda2
+tune2fs -o journal_data_writeback -r 25600 /dev/sda2
 mkdir /target
-mount -t ext4 /dev/vda2 /target
+mount -t ext4 /dev/sda2 /target
 mkdir /target/etc
 cat > /target/etc/fstab <<___
 proc      /proc proc nodev,noexec,nosuid 0 0
-/dev/vda2 /     ext4 defaults,noatime,nodiratime,nouser_xattr,data=writeback,commit=120,errors=remount-ro 0 1
+/dev/sda2 /     ext4 defaults,noatime,nodiratime,nouser_xattr,data=writeback,commit=120,errors=remount-ro 0 1
 ___
 EOF
 
@@ -413,7 +413,7 @@ ___
 
 # clear the disk
 mount -o remount,ro /target
-/target/usr/sbin/zerofree /dev/vda2
+/target/usr/sbin/zerofree /dev/sda2
 mount -o remount,rw /target
 EOF
 
@@ -442,7 +442,8 @@ qemu-system-${ARCH} \
   -enable-kvm \
   -m 1G \
   -boot once=n \
-  -drive file=$PREFIX/ubuntu-$VER-raw.img,if=virtio,index=0,media=disk,format=raw,cache=unsafe \
+  -drive file=$PREFIX/ubuntu-$VER-raw.img,if=none,id=hd0,discard=unmap,media=disk,format=raw,cache=unsafe \
+  -device virtio-scsi-pci,id=scsi -device scsi-hd,drive=hd0 \
   -netdev user,id=hostnet0,hostname=ubuntu-$VER,tftp=$TMPROOT,bootfile=pxelinux.0 \
   -device virtio-net-pci,romfile=pxe-virtio.rom,netdev=hostnet0 \
   -nographic -vga none \
@@ -480,7 +481,8 @@ qemu-system-${ARCH} \
   -enable-kvm \
   -m 1G \
   -boot order=c \
-  -drive file=$(dirname \$0)/ubuntu-$VER.img,if=virtio,index=0,media=disk,cache=writeback \
+  -drive file=$(dirname \$0)/ubuntu-$VER.img,if=none,id=hd0,discard=unmap,media=disk,cache=writeback \
+  -device virtio-scsi-pci,id=scsi -device scsi-hd,drive=hd0 \
   -netdev user,id=hostnet0,hostname=ubuntu-$VER -device virtio-net-pci,romfile=,netdev=hostnet0 \
   -nographic -vga none \
   -balloon virtio \
